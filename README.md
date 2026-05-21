@@ -232,7 +232,7 @@ AbandonBoard only needs your BoardDocs **password** when it must act as a logged
 
 | Situation | Password |
 |-----------|----------|
-| `python export_boarddocs.py` with only public settings (default URLs, no `username`) | Not asked |
+| `python export_boarddocs.py` with no `username` or `cookies_file` | Not asked — exports **public** agendas only (same as `--public-only`) |
 | `--public-only` (any other flags) | Not asked |
 | `--cookies-file` … | Not asked — see [Using a cookies file instead](#using-a-cookies-file-instead) |
 
@@ -245,6 +245,8 @@ A password is requested only if **all** of the following are true:
 1. You did **not** pass `--public-only`, and  
 2. You did **not** pass `--cookies-file`, and  
 3. You set a username (`--username` or `"username"` in `config.json`).
+
+Without a username or cookies file, the exporter skips private export automatically; use `--private-only` with credentials when you intend to export only logged-in content.
 
 That covers these common commands:
 
@@ -292,7 +294,7 @@ Verbose: `pytest -v`
 
 ### Public export (Phoenixville default)
 
-**Does not use your password** (no `username` / not logging in).
+**Does not use your password** (no `username` / not logging in). Running without credentials exports public agendas only; add `--public-only` if you want to be explicit.
 
 ```powershell
 python export_boarddocs.py --limit 2 -v

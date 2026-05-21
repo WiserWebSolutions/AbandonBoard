@@ -1446,12 +1446,30 @@ def filter_committees(all_committees: list[Committee], ids: list[str] | None) ->
     return [c for c in all_committees if c.committee_id.upper() in wanted]
 
 
+def has_private_credentials(args: argparse.Namespace) -> bool:
+    return bool(args.username or args.cookies_file)
+
+
+def apply_public_only_default(args: argparse.Namespace) -> None:
+    """Export public agendas only when no login is configured (unless --private-only)."""
+    if args.public_only or args.private_only:
+        return
+    if has_private_credentials(args):
+        return
+    LOG.info(
+        "No username or cookies file configured; exporting public agendas only "
+        "(set username or --cookies-file, or use --private-only for logged-in export)"
+    )
+    args.public_only = True
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(levelname)s %(message)s",
     )
+    apply_public_only_default(args)
     if args.config:
         LOG.info("Using config file %s", Path(args.config).resolve())
 

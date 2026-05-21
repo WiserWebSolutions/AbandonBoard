@@ -2,11 +2,23 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 
 import pytest
 
 import export_boarddocs as bd
+
+
+def _args(**kwargs: object) -> argparse.Namespace:
+    defaults: dict[str, object] = {
+        "public_only": False,
+        "private_only": False,
+        "username": None,
+        "cookies_file": None,
+    }
+    defaults.update(kwargs)
+    return argparse.Namespace(**defaults)
 
 
 def test_normalize_config_committees_dict():
@@ -102,3 +114,37 @@ def test_parse_args_defaults_without_config(tmp_path, monkeypatch):
     assert args.site == bd.DEFAULT_SITE
     assert args.config is None
     assert not hasattr(args, "password")
+
+
+def test_apply_public_only_default_without_credentials():
+    args = _args()
+    bd.apply_public_only_default(args)
+    assert args.public_only is True
+
+
+def test_apply_public_only_default_with_username():
+    args = _args(username="alice")
+    bd.apply_public_only_default(args)
+    assert args.public_only is False
+
+
+def test_apply_public_only_default_with_cookies_file():
+    args = _args(cookies_file="cookies.json")
+    bd.apply_public_only_default(args)
+    assert args.public_only is False
+
+
+def test_apply_public_only_default_respects_explicit_flags():
+    args = _args(public_only=True)
+    bd.apply_public_only_default(args)
+    assert args.public_only is True
+
+    args = _args(private_only=True)
+    bd.apply_public_only_default(args)
+    assert args.public_only is False
+
+
+def test_apply_public_only_default_skips_when_already_public_only():
+    args = _args(public_only=True, username="alice")
+    bd.apply_public_only_default(args)
+    assert args.public_only is True
