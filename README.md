@@ -10,13 +10,26 @@ Exports BoardDocs meeting agendas and attachments as nested PDFs for both **publ
 
 **Password / login?** See [Password and login (transparency)](#password-and-login-transparency) for exactly when a password is asked for and where it goes.
 
+## Download
+
+**Easiest (no Git):** On [GitHub](https://github.com/WiserWebSolutions/AbandonBoard), click **Code** → **Download ZIP**, extract the folder, then follow [Getting started (Windows, step by step)](#getting-started-windows-step-by-step).
+
+After extracting, the folder may be named `AbandonBoard-main` — you can rename it to `AbandonBoard` or use that name when you `cd` into the project in PowerShell.
+
+**With Git:**
+
+```powershell
+git clone https://github.com/WiserWebSolutions/AbandonBoard.git
+cd AbandonBoard
+```
+
 ## Getting started (Windows, step by step)
 
 This section is for people who normally use File Explorer and a web browser, not a “black window” full of text. You only need to do the **one-time setup** once; after that, exporting is usually one command.
 
 ### What you need
 
-1. **This project** — a folder on your PC that contains `export_boarddocs.py` (for example `AbandonBoard` in Downloads or Documents).
+1. **This project** — a folder on your PC that contains `export_boarddocs.py` (see [Download](#download); for example `AbandonBoard` in Downloads or Documents).
 2. **Python** — free software that runs the exporter. If you are not sure you have it, install it from [python.org/downloads](https://www.python.org/downloads/). During setup, turn on **“Add python.exe to PATH”** (or “Add Python to environment variables”). That lets Windows find Python when you type `python`.
 
 ### Open PowerShell in the project folder
