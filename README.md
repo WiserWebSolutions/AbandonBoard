@@ -31,7 +31,7 @@ Each `YYYY-MM-DD-Agenda.pdf` contains:
 ## Setup
 
 ```powershell
-cd C:\Users\dwiser\Projects\boarddocs-export
+cd path\to\AbandonBoard
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -61,25 +61,26 @@ copy config.example.json config.json
 
 If `config.json` exists in the current directory, it is loaded automatically. Use another path with `--config path\to\settings.json`.
 
-| Key | CLI flag | Description |
-|-----|----------|-------------|
-| `site` | `--site` | BoardDocs path (e.g. `pa/phoe`) |
-| `public_url` | `--public-url` | Public landing page URL |
-| `output` | `--output` | Export directory (default `output`) |
-| `since` / `until` | `--since` / `--until` | Meeting date range |
-| `limit` | `--limit` | Max meetings per committee |
-| `committee_ids` | `--committee-id` | List of committee IDs to export |
-| `committees` | — | Name → ID map; IDs are used when `committee_ids` is omitted |
-| `public_only` | `--public-only` | Skip private export |
-| `private_only` | `--private-only` | Skip public export |
-| `login_url` | `--login-url` | BoardDocs login URL |
-| `username` | `--username` | BoardDocs username (login prompted for private export) |
-| `cookies_file` | `--cookies-file` | Browser cookies JSON instead of login |
-| `headed_login` | `--headed-login` | Show browser during login |
-| `pdf_engine` | `--pdf-engine` | `auto`, `story`, or `playwright` |
-| `request_delay` | `--request-delay` | Seconds between API calls |
-| `verbose` | `-v` | Debug logging |
-| `survey_content` | `--survey-content` | Content discovery mode |
+| Key | CLI flag | Default | Description |
+|-----|----------|---------|-------------|
+| `site` | `--site` | `pa/phoe` | BoardDocs path (e.g. `pa/phoe`) |
+| `public_url` | `--public-url` | `https://go.boarddocs.com/pa/phoe/Board.nsf/Public` | Public landing page URL |
+| `output` | `--output` | `output` | Export directory |
+| `since` | `--since` | `null` | Earliest meeting date (`YYYYMMDD` or `YYYY-MM-DD`) |
+| `until` | `--until` | `null` | Latest meeting date (`YYYYMMDD` or `YYYY-MM-DD`) |
+| `limit` | `--limit` | `null` | Max meetings per committee (newest first; no limit when omitted) |
+| `committee_ids` | `--committee-id` | `null` | List of committee IDs to export (repeatable on CLI) |
+| `committees` | — | Phoenixville map in `config.example.json` | Name → ID map; IDs are used when `committee_ids` is omitted |
+| `public_only` | `--public-only` | `false` | Skip private export |
+| `private_only` | `--private-only` | `false` | Skip public export |
+| `login_url` | `--login-url` | `https://go.boarddocs.com/pa/phoe/Board.nsf` | BoardDocs login URL (required for private export unless `cookies_file` is set) |
+| `username` | `--username` | `null` | BoardDocs username (login prompted for private export) |
+| `cookies_file` | `--cookies-file` | `null` | Browser cookies JSON instead of login |
+| `headed_login` | `--headed-login` | `false` | Show browser during login |
+| `pdf_engine` | `--pdf-engine` | `auto` | Agenda HTML → PDF: `auto`, `story`, or `playwright` |
+| `request_delay` | `--request-delay` | `0.25` | Seconds between API calls (`0` disables) |
+| `verbose` | `-v` | `false` | Debug logging |
+| `survey_content` | `--survey-content` | `false` | Content discovery mode (writes JSON under `output/discovery/`) |
 
 Example run with config only:
 
