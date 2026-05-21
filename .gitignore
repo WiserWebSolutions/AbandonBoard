@@ -1,0 +1,7 @@
+config.json
+cookies.json
+output/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/

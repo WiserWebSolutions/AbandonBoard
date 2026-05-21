@@ -1,0 +1,32 @@
+{
+  "site": "pa/phoe",
+  "public_url": "https://go.boarddocs.com/pa/phoe/Board.nsf/Public",
+  "output": "output",
+
+  "since": null,
+  "until": null,
+  "limit": null,
+
+  "committee_ids": null,
+  "committees": {
+    "Board of School Directors": "A8EFZW419B9D",
+    "Board Meeting Minutes": "CWWP6G53BCB7",
+    "Buildings and Grounds Committee": "CTNND25F5CC0",
+    "Curriculum Committee": "CTNNFJ5FAEF1",
+    "Finance / Personnel Committee": "CTNNDP5F7630",
+    "Policy Committee": "CTNNDT5F7A3B"
+  },
+
+  "public_only": false,
+  "private_only": false,
+
+  "login_url": "https://go.boarddocs.com/pa/phoe/Board.nsf",
+  "username": "your-boarddocs-username",
+  "cookies_file": null,
+  "headed_login": false,
+
+  "pdf_engine": "auto",
+  "request_delay": 0.25,
+  "verbose": false,
+  "survey_content": false
+}
