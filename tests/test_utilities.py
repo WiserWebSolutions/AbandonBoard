@@ -66,3 +66,44 @@ def test_parse_args_defaults(tmp_path, monkeypatch):
     assert args.output == bd.DEFAULT_OUTPUT
     assert args.pdf_engine == "auto"
     assert args.request_delay == bd.REQUEST_DELAY_SEC
+    assert args.refresh_recent_days == bd.DEFAULT_REFRESH_RECENT_DAYS
+
+
+def test_meeting_is_within_recent_days():
+    today = bd.date(2026, 6, 16)
+    recent = bd.Meeting("u1", "Board Meeting", "20260610", "id1")
+    old = bd.Meeting("u2", "Board Meeting", "20260101", "id2")
+
+    assert bd.meeting_is_within_recent_days(recent, days=30, reference=today)
+    assert not bd.meeting_is_within_recent_days(old, days=30, reference=today)
+    assert not bd.meeting_is_within_recent_days(recent, days=0, reference=today)
+    assert bd.meeting_is_within_recent_days(
+        bd.Meeting("u3", "Board Meeting", "20260517", "id3"),
+        days=30,
+        reference=today,
+    )
+    assert not bd.meeting_is_within_recent_days(
+        bd.Meeting("u4", "Board Meeting", "20260516", "id4"),
+        days=30,
+        reference=today,
+    )
+
+
+def test_parse_args_refresh_recent_days_from_config(tmp_path):
+    cfg = tmp_path / "cfg.json"
+    cfg.write_text(
+        '{"refresh_recent_days": 7}',
+        encoding="utf-8",
+    )
+    args = bd.parse_args(["--config", str(cfg)])
+    assert args.refresh_recent_days == 7
+
+
+def test_cli_overrides_refresh_recent_days(tmp_path):
+    cfg = tmp_path / "cfg.json"
+    cfg.write_text(
+        '{"refresh_recent_days": 7}',
+        encoding="utf-8",
+    )
+    args = bd.parse_args(["--config", str(cfg), "--refresh-recent-days", "0"])
+    assert args.refresh_recent_days == 0

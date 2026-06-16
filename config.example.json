@@ -27,6 +27,7 @@
 
   "pdf_engine": "auto",
   "request_delay": 0.25,
+  "refresh_recent_days": 30,
   "verbose": false,
   "survey_content": false
 }

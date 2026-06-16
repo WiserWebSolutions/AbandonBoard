@@ -31,6 +31,7 @@ import re
 import sys
 import time
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import unquote, urlparse
@@ -81,6 +82,7 @@ DEFAULT_PUBLIC_URL = "https://go.boarddocs.com/pa/phoe/Board.nsf/Public"
 DEFAULT_OUTPUT = "output"
 DEFAULT_CONFIG_NAME = "config.json"
 REQUEST_DELAY_SEC = 0.25
+DEFAULT_REFRESH_RECENT_DAYS = 30
 
 # JSON keys (snake_case or kebab-case) mapped to argparse dest names.
 CONFIG_KEY_ALIASES: dict[str, str] = {
@@ -105,6 +107,8 @@ CONFIG_KEY_ALIASES: dict[str, str] = {
     "request_delay": "request_delay",
     "survey-content": "survey_content",
     "survey_content": "survey_content",
+    "refresh-recent-days": "refresh_recent_days",
+    "refresh_recent_days": "refresh_recent_days",
 }
 
 # argparse destinations that may be set from config.json.
@@ -127,6 +131,7 @@ CONFIG_ARG_DESTS: frozenset[str] = frozenset(
         "request_delay",
         "verbose",
         "survey_content",
+        "refresh_recent_days",
     }
 )
 
@@ -190,6 +195,24 @@ class Meeting:
     def iso_date(self) -> str:
         d = self.numberdate
         return f"{d[0:4]}-{d[4:6]}-{d[6:8]}"
+
+
+def meeting_calendar_date(meeting: Meeting) -> date:
+    d = meeting.numberdate
+    return date(int(d[0:4]), int(d[4:6]), int(d[6:8]))
+
+
+def meeting_is_within_recent_days(
+    meeting: Meeting,
+    *,
+    days: int,
+    reference: date | None = None,
+) -> bool:
+    """True when the meeting date is on or after (reference - days)."""
+    if days <= 0:
+        return False
+    today = reference or date.today()
+    return meeting_calendar_date(meeting) >= today - timedelta(days=days)
 
 
 class BoardDocsClient:
@@ -1076,6 +1099,7 @@ def export_scope(
     private: bool,
     pdf_engine: str = "auto",
     request_delay_sec: float = REQUEST_DELAY_SEC,
+    refresh_recent_days: int = DEFAULT_REFRESH_RECENT_DAYS,
 ) -> int:
     written = 0
     district = district_id_from_site(client.site)
@@ -1099,8 +1123,17 @@ def export_scope(
         for meeting in meetings:
             out_path = committee_dir / f"{meeting.iso_date}-Agenda.pdf"
             if out_path.exists():
-                LOG.info("  skip existing %s", out_path.name)
-                continue
+                if meeting_is_within_recent_days(
+                    meeting, days=refresh_recent_days
+                ):
+                    LOG.info(
+                        "  re-export recent %s (within last %d day(s))",
+                        out_path.name,
+                        refresh_recent_days,
+                    )
+                else:
+                    LOG.info("  skip existing %s", out_path.name)
+                    continue
 
             LOG.info("  %s — %s", meeting.iso_date, meeting.name[:80])
             time.sleep(request_delay_sec)
@@ -1379,6 +1412,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "file endpoints (requires login; writes JSON under output/discovery/)"
         ),
     )
+    parser.add_argument(
+        "--refresh-recent-days",
+        type=int,
+        default=DEFAULT_REFRESH_RECENT_DAYS,
+        metavar="DAYS",
+        help=(
+            "Re-download and rebuild agenda PDFs from the last DAYS even when "
+            "the output file already exists (default: %(default)s). "
+            "Use 0 to always skip existing files."
+        ),
+    )
     if config_defaults:
         parser.set_defaults(**config_defaults)
     return parser.parse_args(argv)
@@ -1552,10 +1596,20 @@ def main(argv: list[str] | None = None) -> int:
     if args.request_delay < 0:
         LOG.error("--request-delay must be >= 0")
         return 1
+    if args.refresh_recent_days < 0:
+        LOG.error("--refresh-recent-days must be >= 0")
+        return 1
     if args.request_delay > 0:
         LOG.info("Request delay: %.2f s between API calls", args.request_delay)
     else:
         LOG.info("Request delay disabled")
+    if args.refresh_recent_days > 0:
+        LOG.info(
+            "Re-exporting existing PDFs from the last %d day(s)",
+            args.refresh_recent_days,
+        )
+    else:
+        LOG.info("Skipping all existing output PDFs")
 
     total = 0
 
@@ -1571,6 +1625,7 @@ def main(argv: list[str] | None = None) -> int:
             private=False,
             pdf_engine=args.pdf_engine,
             request_delay_sec=args.request_delay,
+            refresh_recent_days=args.refresh_recent_days,
         )
 
     if not args.public_only:
@@ -1586,6 +1641,7 @@ def main(argv: list[str] | None = None) -> int:
             private=True,
             pdf_engine=args.pdf_engine,
             request_delay_sec=args.request_delay,
+            refresh_recent_days=args.refresh_recent_days,
         )
 
     LOG.info("Finished. Wrote %d agenda PDF(s) under %s", total, output_root)
