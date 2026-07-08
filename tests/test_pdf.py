@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import fitz
 
 import export_boarddocs as bd
@@ -56,6 +58,64 @@ def test_build_nested_agenda_pdf_remaps_boarddocs_link(site: str, base_url: str)
         assert found_goto, "expected at least one internal goto link after remap"
     finally:
         doc.close()
+
+
+def test_build_pdf_index_entry_extracts_agenda_text_and_attachments(
+    tmp_path, site: str, base_url: str
+):
+    agenda_doc = fitz.open()
+    agenda_doc.new_page()
+    agenda_doc[0].insert_text((72, 72), "Call to Order - Roll Call")
+    agenda_pdf = agenda_doc.tobytes()
+    agenda_doc.close()
+
+    attachment_doc = fitz.open()
+    attachment_doc.new_page()
+    att_bytes = attachment_doc.tobytes()
+    attachment_doc.close()
+
+    saved = [
+        bd.SavedAttachment(
+            bookmark="Budget.pdf",
+            blob=att_bytes,
+            resolved_url=f"{base_url}/files/FILE1/$file/budget.pdf",
+            href="/files/FILE1/$file/budget.pdf",
+            file_unique="FILE1",
+        )
+    ]
+    nested_pdf = bd.build_nested_agenda_pdf(
+        agenda_pdf, saved, base_url=base_url, site=site
+    )
+
+    output_root = tmp_path / "output"
+    pdf_path = output_root / "pa-phoe" / "Public" / "Board of School Directors" / "2024-01-08-Agenda.pdf"
+    pdf_path.parent.mkdir(parents=True)
+    pdf_path.write_bytes(nested_pdf)
+
+    entry = bd.build_pdf_index_entry(pdf_path, output_root)
+
+    assert entry is not None
+    assert entry["district"] == "pa-phoe"
+    assert entry["visibility"] == "Public"
+    assert entry["committee"] == "Board of School Directors"
+    assert entry["date"] == "2024-01-08"
+    assert "Call to Order" in entry["agenda_text"]
+    assert entry["attachments"] == [{"title": "Budget.pdf", "page": 2}]
+
+
+def test_write_search_index_writes_one_json_line_per_entry(tmp_path):
+    output_root = tmp_path / "output"
+    output_root.mkdir()
+    entries = [
+        {"path": "pa-phoe/Public/x/2024-01-08-Agenda.pdf", "district": "pa-phoe"},
+        {"path": "pa-phoe/Public/x/2024-01-22-Agenda.pdf", "district": "pa-phoe"},
+    ]
+
+    index_path = bd.write_search_index(output_root, entries)
+
+    lines = index_path.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 2
+    assert json.loads(lines[0])["path"] == entries[0]["path"]
 
 
 def test_html_to_pdf_story_produces_valid_pdf(base_url: str):

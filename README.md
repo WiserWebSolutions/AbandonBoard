@@ -158,6 +158,32 @@ Each `YYYY-MM-DD-Agenda.pdf` contains:
 3. Non-PDF attachments embedded in the PDF portfolio
 4. **BoardDocs hyperlinks rewritten** — links in the agenda that pointed at `go.boarddocs.com` (file downloads, `goto?open&id=…`, etc.) are converted to internal jumps to the matching attachment bookmark, so the archive works after BoardDocs is cancelled.
 
+### Searching the archive without opening every PDF
+
+Every export run also writes `output/index.jsonl` — one JSON line per meeting PDF:
+
+```json
+{"path": "pa-phoe/Public/Board of School Directors/2024-01-08-Agenda.pdf",
+ "district": "pa-phoe", "visibility": "Public", "committee": "Board of School Directors",
+ "date": "2024-01-08", "page_count": 46,
+ "agenda_text": "...full text of the agenda summary pages...",
+ "attachments": [{"title": "08_14_23_Personnel_Report.pdf", "page": 10}, ...]}
+```
+
+`agenda_text` covers only the agenda summary pages (before the first attachment), not the attachments themselves, so the index stays small — a few hundred meetings and hundreds of attachments compress to a handful of MB instead of gigabytes of PDFs. Search it directly instead of opening PDFs one at a time:
+
+```powershell
+findstr /i "budget" output\index.jsonl
+```
+
+Each match already tells you the file and the page number to jump to, so you (or an LLM assistant) only need to open the one relevant page range instead of scanning every PDF's full text.
+
+Rebuild the index for PDFs already on disk, with no BoardDocs credentials or network access needed:
+
+```powershell
+python export_boarddocs.py --build-index --output output
+```
+
 ## Setup
 
 ```powershell
@@ -211,6 +237,7 @@ If `config.json` exists in the current directory, it is loaded automatically. Us
 | `request_delay` | `--request-delay` | `0.25` | Seconds between API calls (`0` disables) |
 | `verbose` | `-v` | `false` | Debug logging |
 | `survey_content` | `--survey-content` | `false` | Content discovery mode (writes JSON under `output/discovery/`) |
+| `build_index` | `--build-index` | `false` | Rebuild `output/index.jsonl` from existing PDFs and exit (no network access) |
 
 Example run with config only:
 

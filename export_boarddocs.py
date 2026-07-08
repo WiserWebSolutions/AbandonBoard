@@ -48,6 +48,7 @@ LOG = logging.getLogger("boarddocs-export")
 
 DEFAULT_SITE = "pa/phoe"
 DISCOVERY_DIR = "discovery"
+INDEX_FILENAME = "index.jsonl"
 
 # BoardDocs logged-in agendas often group items under these category titles.
 CONTENT_SECTION_MARKERS: tuple[tuple[str, str], ...] = (
@@ -1006,6 +1007,65 @@ def build_nested_agenda_pdf(
     return out
 
 
+def build_pdf_index_entry(pdf_path: Path, output_root: Path) -> dict[str, object] | None:
+    """Build a lightweight search-index record for an already-exported agenda PDF.
+
+    Reads only the embedded table of contents (one bookmark per attachment, set by
+    build_nested_agenda_pdf) and the agenda summary pages that precede the first
+    attachment, so indexing stays fast even for multi-hundred-page nested PDFs and
+    never needs to re-fetch anything from BoardDocs.
+    """
+    rel = pdf_path.relative_to(output_root)
+    if len(rel.parts) < 4:
+        return None
+    district, visibility, committee = rel.parts[0], rel.parts[1], rel.parts[2]
+
+    doc = fitz.open(pdf_path)
+    try:
+        toc = doc.get_toc()
+        attachments = [{"title": title, "page": page} for _, title, page in toc[1:]]
+        agenda_end_page = toc[1][2] - 1 if len(toc) > 1 else doc.page_count
+        agenda_text = "\n".join(
+            doc[i].get_text() for i in range(min(agenda_end_page, doc.page_count))
+        ).strip()
+        page_count = doc.page_count
+    finally:
+        doc.close()
+
+    return {
+        "path": rel.as_posix(),
+        "district": district,
+        "visibility": visibility,
+        "committee": committee,
+        "date": rel.stem[:10],
+        "page_count": page_count,
+        "agenda_text": agenda_text,
+        "attachments": attachments,
+    }
+
+
+def build_search_index(output_root: Path) -> list[dict[str, object]]:
+    entries: list[dict[str, object]] = []
+    for pdf_path in sorted(output_root.rglob("*.pdf")):
+        try:
+            entry = build_pdf_index_entry(pdf_path, output_root)
+        except Exception:
+            LOG.exception("Failed to index %s", pdf_path)
+            continue
+        if entry:
+            entries.append(entry)
+    entries.sort(key=lambda e: (e["district"], e["visibility"], e["committee"], e["date"]))
+    return entries
+
+
+def write_search_index(output_root: Path, entries: list[dict[str, object]]) -> Path:
+    index_path = output_root / INDEX_FILENAME
+    with index_path.open("w", encoding="utf-8") as f:
+        for entry in entries:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    return index_path
+
+
 def resolve_login_url(url: str) -> str:
     """BoardDocs credentials are submitted at Board.nsf/Private?open&login."""
     url = url.strip()
@@ -1413,6 +1473,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--build-index",
+        action="store_true",
+        help=(
+            f"Rebuild {INDEX_FILENAME} from PDFs already under --output (agenda text "
+            "plus attachment names/pages per meeting) and exit. No network access or "
+            "credentials required."
+        ),
+    )
+    parser.add_argument(
         "--refresh-recent-days",
         type=int,
         default=DEFAULT_REFRESH_RECENT_DAYS,
@@ -1519,6 +1588,12 @@ def main(argv: list[str] | None = None) -> int:
 
     output_root = Path(args.output).resolve()
     output_root.mkdir(parents=True, exist_ok=True)
+
+    if args.build_index:
+        entries = build_search_index(output_root)
+        index_path = write_search_index(output_root, entries)
+        LOG.info("Wrote %s (%d meeting(s) indexed)", index_path, len(entries))
+        return 0
 
     public_client = BoardDocsClient(args.site)
     committees: list[Committee] = []
@@ -1645,6 +1720,11 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     LOG.info("Finished. Wrote %d agenda PDF(s) under %s", total, output_root)
+
+    index_entries = build_search_index(output_root)
+    index_path = write_search_index(output_root, index_entries)
+    LOG.info("Updated %s (%d meeting(s) indexed)", index_path, len(index_entries))
+
     return 0
 
 
